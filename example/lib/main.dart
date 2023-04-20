@@ -1,14 +1,7 @@
-import 'dart:async';
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
-import 'package:pdf_viewer_plugin/pdf_viewer_plugin.dart';
+import 'package:flutter_plugin_pdf_viewer/flutter_plugin_pdf_viewer.dart';
 
-void main() {
-  runApp(MyApp());
-}
+void main() => runApp(MyApp());
 
 class MyApp extends StatefulWidget {
   @override
@@ -16,55 +9,71 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  final sampleUrl = 'http://www.africau.edu/images/default/sample.pdf';
+  bool _isLoading = true;
+  late PDFDocument document;
 
-  String? pdfFlePath;
-
-  Future<String> downloadAndSavePdf() async {
-    final directory = await getApplicationDocumentsDirectory();
-    final file = File('${directory.path}/sample.pdf');
-    if (await file.exists()) {
-      return file.path;
-    }
-    final response = await http.get(Uri.parse(sampleUrl));
-    await file.writeAsBytes(response.bodyBytes);
-    return file.path;
+  @override
+  void initState() {
+    super.initState();
+    loadDocument();
   }
 
-  void loadPdf() async {
-    pdfFlePath = await downloadAndSavePdf();
-    setState(() {});
+  loadDocument() async {
+    document = await PDFDocument.fromAsset('assets/sample.pdf');
+
+    setState(() => _isLoading = false);
+  }
+
+  changePDF(value) async {
+    setState(() => _isLoading = true);
+    if (value == 1) {
+      document = await PDFDocument.fromAsset('assets/sample.pdf');
+    } else if (value == 2) {
+      document = await PDFDocument.fromURL(
+          "https://www.canada.ca/content/dam/cra-arc/formspubs/pbg/b402/b402-fill-23e.pdf");
+    } else {
+      document = await PDFDocument.fromAsset('assets/sample2.pdf');
+    }
+    setState(() => _isLoading = false);
   }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: Builder(builder: (context) {
-        return Scaffold(
-          backgroundColor: Colors.black,
-          appBar: AppBar(
-            title: Text('Plugin example app'),
+      home: Scaffold(
+        drawer: Drawer(
+          child: Column(
+            children: <Widget>[
+              SizedBox(height: 36),
+              ListTile(
+                title: Text('Load from Assets'),
+                onTap: () {
+                  changePDF(1);
+                },
+              ),
+              ListTile(
+                title: Text('Load from URL'),
+                onTap: () {
+                  changePDF(2);
+                },
+              ),
+              ListTile(
+                title: Text('Restore default'),
+                onTap: () {
+                  changePDF(3);
+                },
+              ),
+            ],
           ),
-          body: Center(
-            child: Column(
-              children: <Widget>[
-                ElevatedButton(
-                  child: Text("Load pdf"),
-                  onPressed: loadPdf,
-                ),
-                if (pdfFlePath != null)
-                  Expanded(
-                    child: Container(
-                      child: PdfView(path: pdfFlePath!),
-                    ),
-                  )
-                else
-                  Text("Pdf is not Loaded"),
-              ],
-            ),
-          ),
-        );
-      }),
+        ),
+        appBar: AppBar(
+          title: const Text('FlutterPluginPDFViewer'),
+        ),
+        body: Center(
+            child: _isLoading
+                ? Center(child: CircularProgressIndicator())
+                : PDFViewer(document: document)),
+      ),
     );
   }
 }
